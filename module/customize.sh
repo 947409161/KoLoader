@@ -1,0 +1,3 @@
+SKIPUNZIP=1
+chmod 644 "$MODDIR"
+chmod 755 "$MODDIR/lkm"

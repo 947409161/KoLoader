@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>KoLoader · LKM 管理</title>
+<style>
+  :root{
+    --bg: #0b0d0f;
+    --panel: #14171a;
+    --panel-2: #1b1f23;
+    --line: #2a2f34;
+    --text: #e6e8ea;
+    --dim: #8b939b;
+    --accent: #4ee08a;
+    --accent-dim: #2c7a52;
+    --warn: #e0a64e;
+    --danger: #e0594e;
+    --mono: "JetBrains Mono","SFMono-Regular",Consolas,Menlo,monospace;
+    --sans: "Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
+  body{
+    padding:18px 16px 80px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .top{
+    display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:14px;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand .name{font-family:var(--mono);font-size:19px;font-weight:700;letter-spacing:.5px;}
+  .brand .name span{color:var(--accent);}
+  .brand .sub{font-size:11px;color:var(--dim);font-family:var(--mono);}
+  .status-pill{
+    font-family:var(--mono);font-size:11px;padding:4px 9px;border-radius:20px;
+    border:1px solid var(--line);color:var(--dim);white-space:nowrap;
+  }
+  .status-pill.ok{color:var(--accent);border-color:var(--accent-dim);}
+  .status-pill.bad{color:var(--danger);border-color:#5a2a26;}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:14px;
+  }
+  .card h2{
+    margin:0 0 12px;font-size:13px;font-family:var(--mono);text-transform:uppercase;
+    letter-spacing:1px;color:var(--dim);display:flex;align-items:center;gap:8px;
+  }
+  .card h2 .num{color:var(--accent);}
+
+  label.field-label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px;}
+  .row{display:flex;gap:8px;}
+  .row > *{flex:1;}
+
+  input[type=text]{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    font-family:var(--mono);font-size:13px;padding:10px 11px;border-radius:7px;outline:none;
+  }
+  input[type=text]:focus{border-color:var(--accent-dim);}
+  input[type=text]::placeholder{color:#555c63;}
+
+  .file-trigger{
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    background:var(--panel-2);border:1px dashed var(--line);color:var(--dim);
+    font-family:var(--mono);font-size:12px;padding:9px 12px;border-radius:7px;
+    cursor:pointer;white-space:nowrap;
+  }
+  .file-trigger:active{background:#202428;}
+  input[type=file]{display:none;}
+
+  .hint{font-size:11px;color:var(--dim);margin-top:7px;line-height:1.5;}
+  .hint b{color:var(--warn);font-weight:600;}
+
+  .toggle-group{display:flex;gap:8px;}
+  .toggle{
+    flex:1;text-align:center;padding:12px 8px;border-radius:7px;border:1px solid var(--line);
+    background:var(--panel-2);cursor:pointer;user-select:none;
+  }
+  .toggle .t-name{font-family:var(--mono);font-size:13px;font-weight:600;}
+  .toggle .t-desc{font-size:10.5px;color:var(--dim);margin-top:3px;}
+  .toggle.active{border-color:var(--accent);background:rgba(78,224,138,.08);}
+  .toggle.active .t-name{color:var(--accent);}
+
+  .btn{
+    width:100%;padding:13px;border-radius:8px;border:none;font-family:var(--mono);
+    font-size:13.5px;font-weight:700;letter-spacing:.3px;cursor:pointer;
+  }
+  .btn-primary{background:var(--accent);color:#06210f;}
+  .btn-primary:active{background:#3fc97a;}
+  .btn-primary:disabled{background:#2b3530;color:#5d6a62;}
+  .btn-ghost{
+    background:transparent;border:1px solid var(--line);color:var(--dim);
+    padding:7px 10px;font-size:11.5px;border-radius:6px;font-weight:500;cursor:pointer;
+  }
+  .btn-danger-ghost{
+    background:transparent;border:1px solid #4a2622;color:var(--danger);
+    padding:6px 10px;font-size:11px;border-radius:6px;cursor:pointer;
+  }
+
+  .log{
+    font-family:var(--mono);font-size:11.5px;line-height:1.6;background:#000;
+    border:1px solid var(--line);border-radius:7px;padding:10px 11px;
+    max-height:140px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;color:#9fe6b5;
+  }
+  .log .err{color:var(--danger);}
+  .log .sys{color:var(--dim);}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;}
+  thead th{
+    text-align:left;color:var(--dim);font-weight:500;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.5px;padding:0 0 8px;border-bottom:1px solid var(--line);
+  }
+  tbody td{padding:9px 4px;border-bottom:1px solid #1f2327;vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  .mod-name{font-weight:600;word-break:break-all;}
+  .mod-stage{
+    display:inline-block;font-size:10px;padding:1px 7px;border-radius:10px;
+    border:1px solid var(--line);color:var(--dim);margin-top:4px;
+  }
+  .mod-stage.post-fs-data{color:var(--accent);border-color:var(--accent-dim);}
+  .mod-stage.service{color:var(--warn);border-color:#5a4626;}
+  .empty-state{
+    text-align:center;padding:30px 10px;color:var(--dim);font-size:12.5px;font-family:var(--mono);
+  }
+  .empty-state .glyph{font-size:22px;display:block;margin-bottom:8px;opacity:.5;}
+
+  .footer-note{
+    text-align:center;font-size:10.5px;color:#4d545b;font-family:var(--mono);margin-top:22px;
+  }
+
+  .modal-mask{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+    align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .modal-mask.open{display:flex;}
+  .modal-sheet{
+    width:100%;max-width:520px;max-height:78vh;background:var(--panel);
+    border:1px solid var(--line);border-bottom:none;border-radius:14px 14px 0 0;
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .modal-head{
+    padding:13px 14px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;gap:8px;
+  }
+  .modal-head .path-input{flex:1;}
+  .modal-head .go-btn, .modal-head .up-btn, .modal-head .close-btn{
+    flex:0 0 auto;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    font-family:var(--mono);font-size:12px;padding:9px 10px;border-radius:7px;cursor:pointer;
+  }
+  .modal-list{flex:1;overflow-y:auto;padding:6px 0;}
+  .modal-item{
+    display:flex;align-items:center;gap:10px;padding:11px 14px;font-family:var(--mono);
+    font-size:13px;cursor:pointer;border-bottom:1px solid #1c2024;
+  }
+  .modal-item:active{background:#1d2226;}
+  .modal-item .glyph{width:18px;text-align:center;color:var(--dim);}
+  .modal-item.dir .glyph{color:var(--accent);}
+  .modal-item.ko .glyph{color:var(--warn);}
+  .modal-item.ko{color:var(--warn);}
+  .modal-item .nm{flex:1;word-break:break-all;}
+  .modal-empty{padding:24px;text-align:center;color:var(--dim);font-size:12px;font-family:var(--mono);}
+</style>
+</head>
+<body>
+
+  <div class="top">
+    <div class="brand">
+      <div class="name">Ko<span>Loader</span></div>
+      <div class="sub">/data/adb/modules/KoLoader</div>
+    </div>
+    <div class="status-pill" id="bridgeStatus">检测中…</div>
+  </div>
+
+  <!-- 1. 导入模块 -->
+  <div class="card">
+    <h2><span class="num">01</span> 导入 .ko 模块文件</h2>
+    <label class="field-label">本地文件路径</label>
+    <div class="row" style="margin-bottom:2px;">
+      <input type="text" id="srcPath" placeholder="/sdcard/Download/example.ko" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="file-trigger" id="browseBtn" style="flex:0 0 84px;">浏览…</div>
+    </div>
+    <div class="hint">点击「浏览」直接读取设备目录</div>
+  </div>
+
+  <!-- 2. 加载时机 -->
+  <div class="card">
+    <h2><span class="num">02</span> 选择加载时机</h2>
+    <div class="toggle-group">
+      <div class="toggle active" data-stage="post-fs-data">
+        <div class="t-name">post-fs-data</div>
+        <div class="t-desc">早期挂载阶段，写入 post-fs-data.sh</div>
+      </div>
+      <div class="toggle" data-stage="service">
+        <div class="t-name">service</div>
+        <div class="t-desc">系统服务阶段，写入 service.sh</div>
+      </div>
+    </div>
+    <div class="hint">将追加一行 <code>ksud insmod /data/adb/modules/KoLoader/lkm/&lt;文件名&gt;</code> 到所选脚本。重复导入同一文件不会产生重复行。</div>
+  </div>
+
+  <div class="card">
+    <h2 style="display:flex;justify-content:space-between;align-items:center;">
+      <span>环境诊断</span>
+      <span class="btn-ghost" id="diagBtn">运行诊断</span>
+    </h2>
+    <div class="hint">遇到 NOFILE / 权限相关失败时，先点这里看真实执行环境（当前身份、su 是否可用、目标文件是否可读）。</div>
+  </div>
+
+  <button class="btn btn-primary" id="importBtn">导入并写入加载脚本</button>
+
+  <div class="card" style="margin-top:14px;">
+    <h2 style="margin-bottom:8px;">执行日志</h2>
+    <div class="log" id="logBox"><span class="sys">等待操作…</span></div>
+  </div>
+
+  <!-- 3. 已配置模块 -->
+  <div class="card">
+    <h2 style="display:flex;justify-content:space-between;align-items:center;">
+      <span><span class="num">03</span> 已配置的模块</span>
+      <span class="btn-ghost" id="refreshBtn">刷新</span>
+    </h2>
+    <div id="modTableWrap">
+      <div class="empty-state"><span class="glyph">∅</span>尚未加载任何模块</div>
+    </div>
+  </div>
+
+  <div class="footer-note">ksud insmod · post-fs-data.sh / service.sh</div>
+
+  <div class="modal-mask" id="browseModal">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <div class="up-btn" id="modalUp">↑ 上级</div>
+        <input type="text" class="path-input" id="modalPath" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div class="go-btn" id="modalGo">前往</div>
+        <div class="close-btn" id="modalClose">关闭</div>
+      </div>
+      <div class="modal-list" id="modalList">
+        <div class="modal-empty">加载中…</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const MOD_DIR   = "/data/adb/modules/KoLoader";
+const LKM_DIR   = MOD_DIR + "/lkm";
+const SCRIPTS   = {
+  "post-fs-data": MOD_DIR + "/post-fs-data.sh",
+  "service":      MOD_DIR + "/service.sh"
+};
+
+let selectedStage = "post-fs-data";
+const logBox = document.getElementById('logBox');
+const bridgeStatus = document.getElementById('bridgeStatus');
+const importBtn = document.getElementById('importBtn');
+
+function log(msg, cls){
+  const line = document.createElement('div');
+  if(cls) line.className = cls;
+  const ts = new Date().toLocaleTimeString('zh-CN', {hour12:false});
+  line.textContent = `[${ts}] ${msg}`;
+  logBox.appendChild(line);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+// --- ksu bridge wrapper -----------------------------------------------
+// KernelSU / KSU-Next / APatch webui 通常注入 window.ksu.exec(cmd, callback)
+// 这里做一层 Promise 封装，并在无桥接环境下优雅降级用于调试。
+function hasBridge(){
+  return typeof window.ksu !== "undefined" && typeof window.ksu.exec === "function";
+}
+
+let __cbSeq = 0;
+function rawExec(cmd, timeoutMs = 15000){
+  return new Promise((resolve, reject) => {
+    if(!hasBridge()){
+      reject(new Error("未检测到 ksu.exec 桥接，请在 KernelSU/KSU-Next 管理器内打开本页面"));
+      return;
+    }
+    const cbName = `__koloader_cb_${++__cbSeq}_${Date.now()}`;
+    let settled = false;
+    const cleanup = () => { delete window[cbName]; clearTimeout(timer); };
+    const timer = setTimeout(() => {
+      if(settled) return;
+      settled = true; cleanup();
+      reject(new Error("命令执行超时（15s 无响应）"));
+    }, timeoutMs);
+
+    window[cbName] = (errno, stdout, stderr) => {
+      if(settled) return;
+      settled = true; cleanup();
+      const code = typeof errno === "string" ? parseInt(errno, 10) : errno;
+      if(code !== 0){
+        reject(Object.assign(new Error(stderr || `命令退出码 ${code}`), {stdout, stderr, code}));
+      } else {
+        resolve(stdout || "");
+      }
+    };
+
+    try{
+      window.ksu.exec(cmd, "{}", cbName);
+    }catch(e){
+      if(!settled){ settled = true; cleanup(); reject(e); }
+    }
+  });
+}
+
+// 先按 ksu.exec 原生上下文执行；如果失败，再退一步尝试 su -c 包裹，
+// 兼容不同 manager 对 ksu.exec 默认是否已提权的实现差异。
+async function shExec(cmd, timeoutMs = 15000){
+  try{
+    return await rawExec(cmd, timeoutMs);
+  }catch(e1){
+    try{
+      const viaSu = await rawExec(`su -c ${shQuote(cmd)}`, timeoutMs);
+      return viaSu;
+    }catch(e2){
+      // 两种方式都失败，把更有信息量的错误抛出
+      throw e2.message && e2.message !== e1.message ? e2 : e1;
+    }
+  }
+}
+
+async function runDiagnostics(){
+  log("──── 开始诊断 ────", "sys");
+  const checks = [
+    ["当前身份 (id)", "id"],
+    ["su 是否可用", "command -v su || echo NOTFOUND"],
+    ["PATH", "echo $PATH"],
+    ["模块目录是否存在", `[ -d ${shQuote(MOD_DIR)} ] && echo EXISTS || echo MISSING`],
+    ["lkm 目录权限", `ls -ld ${shQuote(LKM_DIR)} 2>&1 || echo MISSING`],
+  ];
+  for(const [label, cmd] of checks){
+    try{
+      const out = await rawExec(cmd, 8000);
+      log(`${label}: ${out.trim() || "(空)"}`);
+    }catch(e){
+      log(`${label}: 执行失败 — ${e.message}`, "err");
+    }
+  }
+
+  const srcPath = document.getElementById('srcPath').value.trim();
+  if(srcPath){
+    try{
+      const out = await rawExec(`ls -laZ ${shQuote(srcPath)} 2>&1 || ls -la ${shQuote(srcPath)} 2>&1 || echo NOFILE`, 8000);
+      log(`目标文件状态: ${out.trim()}`);
+    }catch(e){
+      log(`目标文件检查失败: ${e.message}`, "err");
+    }
+    try{
+      const out2 = await rawExec(`su -c "ls -la ${srcPath.replace(/"/g,'\\"')}" 2>&1`, 8000);
+      log(`su -c 下的文件状态: ${out2.trim()}`);
+    }catch(e){
+      log(`su -c 检查失败: ${e.message}`, "err");
+    }
+  } else {
+    log("（未填写文件路径，跳过文件可读性检查）", "sys");
+  }
+  log("──── 诊断结束 ────", "sys");
+}
+
+document.getElementById('diagBtn').addEventListener('click', runDiagnostics);
+
+function initBridge(){
+  if(hasBridge()){
+    bridgeStatus.textContent = "已连接 ksud";
+    bridgeStatus.className = "status-pill ok";
+  } else {
+    bridgeStatus.textContent = "未连接桥接";
+    bridgeStatus.className = "status-pill bad";
+    log("未检测到 ksu.exec，请确认本页面通过 KernelSU 管理器的 WebUI 入口打开", "err");
+  }
+}
+
+// --- stage toggle -------------------------------------------------------
+document.querySelectorAll('.toggle').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.toggle').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    selectedStage = el.dataset.stage;
+  });
+});
+
+// --- root-powered file browser ------------------------------------------
+const browseModal = document.getElementById('browseModal');
+const modalPath = document.getElementById('modalPath');
+const modalList = document.getElementById('modalList');
+let currentDir = "/sdcard";
+
+function normalizeDir(p){
+  p = p.trim();
+  if(!p) p = "/";
+  if(p.length > 1 && p.endsWith("/")) p = p.slice(0, -1);
+  return p;
+}
+
+function parentDir(p){
+  if(p === "/" || p === "") return "/";
+  const idx = p.lastIndexOf("/");
+  return idx <= 0 ? "/" : p.slice(0, idx);
+}
+
+async function loadDir(dir){
+  dir = normalizeDir(dir);
+  modalList.innerHTML = `<div class="modal-empty">读取中…</div>`;
+  modalPath.value = dir;
+  try{
+    // -p 给目录加 / 后缀，方便区分；2>&1 把权限错误也带出来
+    const out = await shExec(`ls -1pA ${shQuote(dir)} 2>&1`);
+    if(/Permission denied|No such file or directory|not found/i.test(out) && out.split("\n").length < 3){
+      modalList.innerHTML = `<div class="modal-empty">${out.trim() || "无法读取该目录"}</div>`;
+      return;
+    }
+    currentDir = dir;
+    const lines = out.split("\n").map(l => l.trim()).filter(Boolean);
+    const dirs = [], kos = [], others = [];
+    lines.forEach(name => {
+      if(name.endsWith("/")) dirs.push(name.slice(0, -1));
+      else if(name.toLowerCase().endsWith(".ko")) kos.push(name);
+      else others.push(name);
+    });
+    dirs.sort(); kos.sort(); others.sort();
+
+    if(dirs.length === 0 && kos.length === 0 && others.length === 0){
+      modalList.innerHTML = `<div class="modal-empty">空目录</div>`;
+      return;
+    }
+
+    let html = "";
+    dirs.forEach(d => {
+      html += `<div class="modal-item dir" data-type="dir" data-name="${d}"><span class="glyph">📁</span><span class="nm">${d}</span></div>`;
+    });
+    kos.forEach(f => {
+      html += `<div class="modal-item ko" data-type="file" data-name="${f}"><span class="glyph">⚙</span><span class="nm">${f}</span></div>`;
+    });
+    others.forEach(f => {
+      html += `<div class="modal-item" data-type="other" data-name="${f}"><span class="glyph">·</span><span class="nm">${f}</span></div>`;
+    });
+    modalList.innerHTML = html;
+
+    modalList.querySelectorAll('.modal-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const type = el.dataset.type;
+        const name = el.dataset.name;
+        const full = dir === "/" ? `/${name}` : `${dir}/${name}`;
+        if(type === "dir"){
+          loadDir(full);
+        } else if(type === "file"){
+          document.getElementById('srcPath').value = full;
+          closeBrowse();
+          log(`已选择文件：${full}`);
+        }
+        // type === "other"（非 .ko 文件）点击无操作，仅展示
+      });
+    });
+  }catch(err){
+    modalList.innerHTML = `<div class="modal-empty">读取失败：${err.message}</div>`;
+  }
+}
+
+function openBrowse(){
+  browseModal.classList.add('open');
+  const existing = document.getElementById('srcPath').value.trim();
+  const startDir = existing ? parentDir(existing) : currentDir;
+  loadDir(startDir);
+}
+function closeBrowse(){
+  browseModal.classList.remove('open');
+}
+
+document.getElementById('browseBtn').addEventListener('click', openBrowse);
+document.getElementById('modalClose').addEventListener('click', closeBrowse);
+document.getElementById('modalUp').addEventListener('click', () => loadDir(parentDir(currentDir)));
+document.getElementById('modalGo').addEventListener('click', () => loadDir(modalPath.value));
+modalPath.addEventListener('keydown', (e) => { if(e.key === 'Enter') loadDir(modalPath.value); });
+browseModal.addEventListener('click', (e) => { if(e.target === browseModal) closeBrowse(); });
+
+function shQuote(s){
+  return "'" + s.replace(/'/g, `'\\''`) + "'";
+}
+
+function basename(p){
+  return p.replace(/\\/g,"/").split("/").filter(Boolean).pop() || p;
+}
+
+// --- import flow ----------------------------------------------------
+async function doImport(){
+  const srcPath = document.getElementById('srcPath').value.trim();
+  if(!srcPath){
+    log("请填写要导入的 .ko 文件路径", "err");
+    return;
+  }
+  const fname = basename(srcPath);
+  const destPath = `${LKM_DIR}/${fname}`;
+  const scriptPath = SCRIPTS[selectedStage];
+  const insmodLine = `ksud insmod ${fname}`;
+
+  importBtn.disabled = true;
+  importBtn.textContent = "处理中…";
+
+  try{
+    log(`检查源文件 ${srcPath}`);
+    await shExec(`[ -f ${shQuote(srcPath)} ] || { echo "NOFILE" >&2; exit 1; }`);
+
+    log(`创建目录 ${LKM_DIR}`);
+    await shExec(`mkdir -p ${shQuote(LKM_DIR)}`);
+
+    log(`复制文件至 ${destPath}`);
+    await shExec(`cp -f ${shQuote(srcPath)} ${shQuote(destPath)} && chmod 755 ${shQuote(destPath)}`);
+
+    log(`确保脚本存在: ${scriptPath}`);
+    await shExec(`[ -f ${shQuote(scriptPath)} ] || printf '#!/system/bin/sh\\n' > ${shQuote(scriptPath)}`);
+
+    log(`写入加载指令（去重）至 ${selectedStage}.sh`);
+    const grepCmd = `grep -qxF ${shQuote(insmodLine)} ${shQuote(scriptPath)}`;
+    const appendCmd = `echo ${shQuote(insmodLine)} >> ${shQuote(scriptPath)}`;
+    await shExec(`${grepCmd} || ${appendCmd}`);
+
+    log(`完成：${fname} → 将在 ${selectedStage} 阶段加载`);
+    document.getElementById('srcPath').value = "";
+    await refreshModules();
+  }catch(err){
+    log(`失败：${err.message}`, "err");
+  }finally{
+    importBtn.disabled = false;
+    importBtn.textContent = "导入并写入加载脚本";
+  }
+}
+
+importBtn.addEventListener('click', doImport);
+document.getElementById('refreshBtn').addEventListener('click', refreshModules);
+
+// --- module table -----------------------------------------------------
+async function refreshModules(){
+  const wrap = document.getElementById('modTableWrap');
+  if(!hasBridge()){
+    return;
+  }
+  try{
+    const entries = [];
+    for(const [stage, path] of Object.entries(SCRIPTS)){
+      const out = await shExec(`[ -f ${shQuote(path)} ] && grep -E '^ksud insmod ' ${shQuote(path)} || true`);
+      out.split("\n").map(l => l.trim()).filter(Boolean).forEach(line => {
+        const m = line.match(/^ksud insmod (.+)$/);
+        if(m) entries.push({stage, path: m[1].trim()});
+      });
+    }
+
+    if(entries.length === 0){
+      wrap.innerHTML = `<div class="empty-state"><span class="glyph">∅</span>尚未加载任何模块</div>`;
+      return;
+    }
+
+    let html = `<table><thead><tr><th>模块文件</th><th style="width:64px;text-align:right;">操作</th></tr></thead><tbody>`;
+    entries.forEach((e, i) => {
+      html += `<tr>
+        <td>
+          <div class="mod-name">${basename(e.path)}</div>
+          <span class="mod-stage ${e.stage}">${e.stage}</span>
+        </td>
+        <td style="text-align:right;">
+          <button class="btn-danger-ghost" data-idx="${i}" data-stage="${e.stage}" data-path="${e.path}">移除</button>
+        </td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    wrap.innerHTML = html;
+
+    wrap.querySelectorAll('.btn-danger-ghost').forEach(btn => {
+      btn.addEventListener('click', () => removeModule(btn.dataset.stage, btn.dataset.path));
+    });
+  }catch(err){
+    log(`刷新模块列表失败：${err.message}`, "err");
+  }
+}
+
+async function removeModule(stage, path){
+  const scriptPath = SCRIPTS[stage];
+  const insmodLine = `ksud insmod ${path}`;
+  try{
+    log(`从 ${stage}.sh 移除加载行：${basename(path)}`);
+    // 用临时文件方式删除匹配行，避免 sed -i 在部分 busybox 上的兼容问题
+    const tmp = `${scriptPath}.tmp`;
+    await shExec(`grep -vxF ${shQuote(insmodLine)} ${shQuote(scriptPath)} > ${shQuote(tmp)} && mv ${shQuote(tmp)} ${shQuote(scriptPath)}`);
+    log(`已移除加载配置（lkm 文件本身未删除：${path}）`);
+    await refreshModules();
+  }catch(err){
+    log(`移除失败：${err.message}`, "err");
+  }
+}
+
+initBridge();
+if(hasBridge()) refreshModules();
+</script>
+</body>
+</html>

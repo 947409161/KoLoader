@@ -1,0 +1,6 @@
+id=KoLoader
+name=KoLoader
+version=1.0.0
+versionCode=20
+description=基于KernelSU开发的LKM管理工具
+author=知秋
