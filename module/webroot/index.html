@@ -494,7 +494,7 @@ async function doImport(){
   const fname = basename(srcPath);
   const destPath = `${LKM_DIR}/${fname}`;
   const scriptPath = SCRIPTS[selectedStage];
-  const insmodLine = `ksud insmod ${fname}`;
+  const insmodLine = `${MOD_DIR}/ko-loader ${fname}`;
 
   importBtn.disabled = true;
   importBtn.textContent = "处理中…";
