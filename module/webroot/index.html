@@ -197,7 +197,7 @@
         <div class="t-desc">系统服务阶段，写入 service.sh</div>
       </div>
     </div>
-    <div class="hint">将追加一行 <code>ksud insmod /data/adb/modules/KoLoader/lkm/&lt;文件名&gt;</code> 到所选脚本。重复导入同一文件不会产生重复行。</div>
+    <div class="hint">将追加一行 <code>/data/adb/modules/KoLoader/loader&lt;文件名&gt;</code> 到所选脚本。重复导入同一文件不会产生重复行。</div>
   </div>
 
   <div class="card">
@@ -226,7 +226,7 @@
     </div>
   </div>
 
-  <div class="footer-note">ksud insmod · post-fs-data.sh / service.sh</div>
+  <div class="footer-note">KoLoader loader · post-fs-data.sh / service.sh</div>
 
   <div class="modal-mask" id="browseModal">
     <div class="modal-sheet">
@@ -540,9 +540,9 @@ async function refreshModules(){
   try{
     const entries = [];
     for(const [stage, path] of Object.entries(SCRIPTS)){
-      const out = await shExec(`[ -f ${shQuote(path)} ] && grep -E '^ksud insmod ' ${shQuote(path)} || true`);
+      const out = await shExec(`[ -f ${shQuote(path)} ] && grep -E '^/data/adb/modules/KoLoader/loader ' ${shQuote(path)} || true`);
       out.split("\n").map(l => l.trim()).filter(Boolean).forEach(line => {
-        const m = line.match(/^ksud insmod (.+)$/);
+        const m = line.match(/^\/data\/adb\/modules\/KoLoader\/loader (.+)$/);
         if(m) entries.push({stage, path: m[1].trim()});
       });
     }
@@ -577,7 +577,7 @@ async function refreshModules(){
 
 async function removeModule(stage, path){
   const scriptPath = SCRIPTS[stage];
-  const insmodLine = `ksud insmod ${path}`;
+  const insmodLine = `/data/adb/modules/KoLoader/loader ${path}`;
   try{
     log(`从 ${stage}.sh 移除加载行：${basename(path)}`);
     // 用临时文件方式删除匹配行，避免 sed -i 在部分 busybox 上的兼容问题
